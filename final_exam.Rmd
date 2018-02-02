@@ -1,0 +1,144 @@
+---
+title: "Final Exam"
+author: "Dawid Dąbkowski"
+date: "2 February 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## PRE-PROCESSING
+
+We start by setting the random seed and loading useful libraries.
+
+```{r, message=F, warning=F}
+set.seed(02022018)
+require(RCurl)
+require(gdata)
+library(dplyr)
+library(magrittr)
+library(ggplot2)
+library(MASS)
+#library(MVN) #multivariate normality test
+#library(MASS)
+#library(caret)
+```
+
+Now we load our data frames for the exercises.
+
+```{r}
+urls <- c("https://www.mimuw.edu.pl/~noble/courses/SDA/data/ushighways.txt",
+         "https://www.mimuw.edu.pl/~noble/courses/SDA/data/PET.txt",
+         "https://www.mimuw.edu.pl/~noble/courses/SDA/data/ozone.csv",
+         "https://www.mimuw.edu.pl/~noble/courses/SDA/data/pendigits.txt",
+         "https://www.mimuw.edu.pl/~noble/courses/SDA/data/carmarks.txt",
+         "https://www.mimuw.edu.pl/~noble/courses/SDA/data/primate.scapulae.txt")
+ushighways <- read.table(urls[1], header=T)
+#download.file("https://www.mimuw.edu.pl/~noble/courses/SDA/data/bodyfat2.XLS", destfile="bodyfat2.xls")
+bodyfat <- read.xls("bodyfat2.xlsx")
+#data(yarn, package="pls")
+yarn <- read.table(urls[2], header=T)
+ozone <- read.csv(urls[3])
+pendigits <- read.table(urls[4])
+carmarks <- read.table(urls[5], sep=";", header=T)
+scapular <- read.table(urls[6], sep=" ", header=T)
+```
+
+## EXERCISE 1
+
+Let us take a look at data.
+
+```{r}
+head(ushighways)
+```
+
+We first draw some histograms with different window widths.
+
+```{r}
+ggplot(ushighways, aes(x=Approx.Miles)) + 
+    geom_histogram(size=2, alpha=0.05, binwidth=20, boundary=0, 
+                   aes(color="20", y=..density..)) + 
+    geom_histogram(size=1.5, alpha=0.05, binwidth=10, boundary=0, 
+                   aes(color="10", y=..density..)) +
+    geom_histogram(size=1, alpha=0.05, binwidth=5, boundary=0, 
+                   aes(color="5", y=..density..)) +
+    theme_bw() + theme(plot.title = element_text(hjust = 0.5)) + ggtitle("Histograms") +
+    guides(color=guide_legend(title="Window width")) + 
+    theme(legend.position=c(0.9,0.8), legend.background=element_rect(fill=alpha('blue',0)))
+```
+
+The second picture with window width of 10 miles looks quite good. It is well-splitted and shows the  monotonicity of the distribution.
+
+Now we will use UCV, BCV and SJPI estimators for window width to plot densities with gaussian kernel.
+
+```{r}
+sjpi <- width.SJ(ushighways$Approx.Miles, method="dpi")
+ggplot(ushighways, aes(x=Approx.Miles)) + 
+    geom_density(fill="grey", size=0.8, alpha=0.05, bw="ucv", aes(color="UCV")) + 
+    geom_density(fill="grey", size=0.8, alpha=0.05, bw="bcv", aes(color="BCV")) +
+    geom_density(fill="grey", size=0.8, alpha=0.05, bw="sj", aes(color="SJ")) +
+    geom_density(fill="grey", size=0.8, alpha=0.05, bw=sjpi, aes(color="SJPI")) +
+    theme_bw() + theme(plot.title = element_text(hjust = 0.5)) + 
+    ggtitle("Density estimators") + guides(color=guide_legend(title="Window width")) + 
+    theme(legend.position=c(0.9,0.8), legend.background=element_rect(fill=alpha('blue',0)))
+```
+
+The BCV estimator (red one) looks quite well-fitted and monotonic. The other kernel choices (triangular, cosine etc.) gave very similar results.
+
+## EXERCISE 2
+
+Let us take a look at data.
+
+```{r}
+head(bodyfat)
+```
+
+## EXERCISE 3
+
+Let us take a look at data.
+
+```{r}
+head(yarn)
+```
+
+## EXERCISE 4
+
+Let us take a look at data.
+
+```{r}
+head(ozone)
+```
+
+## EXERCISE 5
+
+Let us take a look at data.
+
+```{r}
+head(pendigits)
+```
+
+## EXERCISE 6
+
+Let us take a look at data.
+
+```{r}
+head(carmarks)
+```
+
+## EXERCISE 7
+
+Let us take a look at data.
+
+```{r}
+head(scapular)
+```
+
+## EXERCISE 8
+
+Let us take a look at data.
+
+```{r}
+head(scapular)
+```
