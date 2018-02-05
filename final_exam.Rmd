@@ -22,8 +22,8 @@ library(magrittr)
 library(ggplot2)
 library(MASS)
 #library(MVN) #multivariate normality test
-#library(MASS)
-#library(caret)
+library(caret)
+library(lars)
 ```
 
 Now we load our data frames for the exercises.
@@ -36,10 +36,8 @@ urls <- c("https://www.mimuw.edu.pl/~noble/courses/SDA/data/ushighways.txt",
          "https://www.mimuw.edu.pl/~noble/courses/SDA/data/carmarks.txt",
          "https://www.mimuw.edu.pl/~noble/courses/SDA/data/primate.scapulae.txt")
 ushighways <- read.table(urls[1], header=T)
-#download.file("https://www.mimuw.edu.pl/~noble/courses/SDA/data/bodyfat2.XLS", destfile="bodyfat2.xls")
 bodyfat <- read.xls("bodyfat2.xlsx")
-#data(yarn, package="pls")
-yarn <- read.table(urls[2], header=T)
+yarn <- read.table(urls[2], header=T)   #data(yarn, package="pls")
 ozone <- read.csv(urls[3])
 pendigits <- read.table(urls[4])
 carmarks <- read.table(urls[5], sep=";", header=T)
@@ -92,16 +90,85 @@ The BCV estimator (red one) looks quite well-fitted and monotonic. The other ker
 Let us take a look at data.
 
 ```{r}
-head(bodyfat)
+head(bodyfat[,1:6])
 ```
+
+We now calculate correlation matrix for 13 explanatory variables.
+
+```{r}
+round(cor(bodyfat[,-(1:2)]), 2)
+```
+
+Some of the variables are highly correlated (around 80-90%), which may lead to ill-conditioning for regression. Let us fit a regression model.
+
+```{r}
+bodyfat_fit <- lm(bodyfat~., bodyfat[,-1])
+summary(bodyfat_fit)
+```
+
+The signifficant variables are: age, neck, abdomen, forearm and wrist. Let us now fit regression by stepwise elimination.
+
+```{r}
+bodyfat_fit_forward <- step(lm(bodyfat~1, bodyfat[,-1]), direction="forward",
+                            scope=formula(bodyfat_fit), trace=0)
+summary(bodyfat_fit_forward)$call
+bodyfat_fit_backward <- step(lm(bodyfat~., bodyfat[,-1]), direction="backward", trace=0)
+summary(bodyfat_fit_backward)$call
+```
+
+Both on the forward and backward stepwise elimination yield the same model based on 8 variables. Now we wan't to find the best model using leave-one-out cross-validation. It is computationally hard to check all possible models of 13 predictors (approx time 4h). We will then implement and use backward stepwise elimination heuristics instead.
+
+```{r, cache=T, }
+stepwise_loocv <- function(variables, trace=F){
+    bodyfat_ctrl <- trainControl(method="LOOCV")
+    len <- length(variables)
+    errors <- data.frame(var=1:len, err=rep(NA,len))
+    init_form <- as.formula(paste("bodyfat~", paste(variables, collapse="+")))
+    init_fit <- train(init_form, bodyfat[,-1], method="lm", trControl=bodyfat_ctrl)
+    init_err <- init_fit$results$RMSE
+    for (i in 1:len){
+        form <- as.formula(paste("bodyfat~", paste(variables[-i], collapse="+")))
+        fit <- train(form, bodyfat[,-1], method="lm", trControl=bodyfat_ctrl)
+        errors$err[i] <- fit$results$RMSE
+    }
+    worst_var <- which.min(errors$err)
+    if (trace) print(paste0("bodyfat~", paste(substr(variables, 1, 4), collapse="+"), 
+                            ": ", round(init_err,2)))
+    if (errors$err[worst_var]<init_err) stepwise_loocv(variables[-worst_var], trace=T)
+    else return(init_fit$finalModel)
+}
+
+bodyfat_fit_loocv <- stepwise_loocv(colnames(bodyfat[,-(1:2)]), trace=T)
+formula(bodyfat_fit_loocv)
+```
+
+This method yields the same model as the ones from the elimination based on AIC. Now we fit a LASSO model and look for a best fit by a leave-one-out cross-validation.
+
+```{r, fig.height=4}
+bodyfat_fit_lasso <- lars(as.matrix(bodyfat[,-(1:2)]), bodyfat[,2], type="lasso")
+plot(bodyfat_fit_lasso)
+bodyfat_lasso <- cv.lars(as.matrix(bodyfat[,-(1:2)]), bodyfat[,2], K=252, type="lasso")
+```
+
+From this we estimate that the lowest MSE of `r which.min(bodyfat_lasso$cv)` is obtained for LASSO model with parameter `r bodyfat_lasso$index[which.min(bodyfat_lasso$cv)]`. Now we do the same analysis for LARS model.
+
+```{r, fig.height=4}
+bodyfat_fit_lars <- lars(as.matrix(bodyfat[,-(1:2)]), bodyfat[,2], type="lar")
+plot(bodyfat_fit_lars)
+bodyfat_lars <- cv.lars(as.matrix(bodyfat[,-(1:2)]), bodyfat[,2], K=252, type="lar")
+```
+
+From this we estimate that the lowest MSE of `r which.min(bodyfat_lasso$cv)` is obtained for LARS model with parameter `r bodyfat_lasso$index[which.min(bodyfat_lasso$cv)]`. This is a much better result comparing to LASSO model.
+
 
 ## EXERCISE 3
 
 Let us take a look at data.
 
 ```{r}
-head(yarn)
+head(yarn[,1:6])
 ```
+
 
 ## EXERCISE 4
 
@@ -116,7 +183,7 @@ head(ozone)
 Let us take a look at data.
 
 ```{r}
-head(pendigits)
+head(pendigits[,1:6])
 ```
 
 ## EXERCISE 6
@@ -124,7 +191,7 @@ head(pendigits)
 Let us take a look at data.
 
 ```{r}
-head(carmarks)
+head(carmarks[,1:6])
 ```
 
 ## EXERCISE 7
@@ -132,7 +199,7 @@ head(carmarks)
 Let us take a look at data.
 
 ```{r}
-head(scapular)
+head(scapular[,1:6])
 ```
 
 ## EXERCISE 8
@@ -140,5 +207,5 @@ head(scapular)
 Let us take a look at data.
 
 ```{r}
-head(scapular)
+head(scapular[,1:6])
 ```
