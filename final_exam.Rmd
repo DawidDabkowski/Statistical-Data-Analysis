@@ -28,6 +28,7 @@ library(glmnet)
 library(ade4)
 library(CCA)
 library(yacca)
+library(cluster)
 ```
 
 Now we load our data frames for the exercises.
@@ -335,13 +336,77 @@ This is the main result and it should be considered that the input correlation m
 Let us take a look at data.
 
 ```{r}
-head(scapular[,1:6])
+head(scapular)
 ```
+
+Before we start cluster analysis, we scale the columns, so the euclidean distance will have better interpretation.
+
+```{r}
+scapular <- scapular[,-9]
+scapular[,2:8] %<>% scale
+```
+
+Now we cluster our data using kmeans, pam (divisive) and single, average, complete and ward linkage (hierarchical). For devisive metods we use k=5. For hierarchical we plot dendrograms and cut them to get 5 clusters as well.
+
+```{r, fig.height=4}
+scapular_kmeans <- kmeans(scapular[,2:8], centers=5)
+table(scapular_kmeans$cluster)
+
+scapular_pam <- pam(scapular[,2:8], k=5)
+table(scapular_pam$cluster)
+
+scapular_dist <- dist(scapular[,2:8], method="euclidean")
+
+scapular_single <- hclust(scapular_dist, method="single")
+scapular_average <- hclust(scapular_dist, method="average") 
+scapular_complete <- hclust(scapular_dist, method="complete") 
+scapular_ward <- hclust(scapular_dist, method="ward") 
+
+plot(scapular_single)
+rect.hclust(scapular_single, k=5, border="red")
+scapular_single %<>% cutree(k=5)
+
+plot(scapular_average)
+rect.hclust(scapular_average, k=5, border="red")
+scapular_average %<>% cutree(k=5)
+
+plot(scapular_complete)
+rect.hclust(scapular_complete, k=5, border="red")
+scapular_complete %<>% cutree(k=5)
+
+plot(scapular_ward)
+rect.hclust(scapular_ward, k=5, border="red")
+scapular_ward %<>% cutree(k=5)
+```
+
+From the summaries and pictures we can see that devisive algorithms don't give outliers. From the hierarchical methods, single and average linkage produce outliers, while complete and ward linkage does not. Now we compare the results with theoretical groups and write confusion matrices.
+
+```{r}
+confusionMatrix(scapular_kmeans$cluster, scapular$classdigit)$table
+confusionMatrix(scapular_kmeans$cluster, scapular$classdigit)$overall[1]
+
+confusionMatrix(scapular_pam$cluster, scapular$classdigit)$table
+confusionMatrix(scapular_pam$cluster, scapular$classdigit)$overall[1]
+
+confusionMatrix(scapular_single, scapular$classdigit)$table
+confusionMatrix(scapular_single, scapular$classdigit)$overall[1]
+
+confusionMatrix(scapular_average, scapular$classdigit)$table
+confusionMatrix(scapular_average, scapular$classdigit)$overall[1]
+
+confusionMatrix(scapular_complete, scapular$classdigit)$table
+confusionMatrix(scapular_complete, scapular$classdigit)$overall[1]
+
+confusionMatrix(scapular_ward, scapular$classdigit)$table
+confusionMatrix(scapular_ward, scapular$classdigit)$overall[1]
+```
+
+The devisive methods gave quite good results: 0.55 acc for kmeans and 0.67 acc for pam. The hierarchical methods with single and average linkage are worse on this dataset (0.29 and 0.28 acc) but complete and ward linkage works well (0.62 and 0.70 acc).
 
 ## EXERCISE 8
 
 Let us take a look at data.
 
 ```{r}
-head(scapular[,1:6])
+head(scapular)
 ```
