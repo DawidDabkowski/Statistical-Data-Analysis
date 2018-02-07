@@ -15,15 +15,19 @@ We start by setting the random seed and loading useful libraries.
 
 ```{r, message=F, warning=F}
 set.seed(02022018)
-require(RCurl)
-require(gdata)
+library(RCurl)
+library(gdata)
 library(dplyr)
 library(magrittr)
 library(ggplot2)
 library(MASS)
-#library(MVN) #multivariate normality test
 library(caret)
 library(lars)
+library(pls)
+library(glmnet)
+library(ade4)
+library(CCA)
+library(yacca)
 ```
 
 Now we load our data frames for the exercises.
@@ -163,12 +167,51 @@ From this we estimate that the lowest MSE of `r which.min(bodyfat_lasso$cv)` is 
 
 ## EXERCISE 3
 
-Let us take a look at data.
+Let us take a look at data. We will separate the test set to use it for performance test later.
 
 ```{r}
 head(yarn[,1:6])
+yarn_train <- (yarn %>% filter(train==1))[,-270]
+yarn_test <- (yarn %>% filter(train==0))[,-270]
 ```
 
+Now we perform PCR and PSLR. We will estimate the error for different number of components by the leave-one-out cross-validation.
+
+```{r}
+yarn_fit_pcr <- pcr(y~., ncomp=20, data=yarn_train, validation="LOO")
+summary(yarn_fit_pcr)
+plot(RMSEP(yarn_fit_pcr), legendpos="topright")
+```
+
+We get the lowest cross-validated error for 19 components, so we choose this number. By the look of graph we could take less components for simplicity (not much difference after 6-th component).
+
+```{r}
+yarn_fit_plsr <- plsr(y~., ncomp=20, data=yarn_train, validation="LOO")
+summary(yarn_fit_plsr)
+plot(RMSEP(yarn_fit_plsr), legendpos="topright")
+```
+
+We get the lowest cross-validated error for 14 components, so we choose this number. By the look of graph we could take less components for simplicity (not much difference after 5-th component).
+
+Now we perform a ridge regression with cross-validation.
+
+```{r}
+yarn_fit_ridge <- cv.glmnet(as.matrix(yarn_train[,-269]), yarn_train[,269], nfolds=21)
+```
+
+We choose the model with lambda.1se estimator, which equals to `r yarn_fit_ridge$lambda.1se`.
+
+Now we compare all models.
+
+```{r}
+predict(yarn_fit_pcr, newdata=yarn_test)[,,19] -> a
+RMSEP(yarn_fit_pcr, newdata=yarn_test)$val[19]
+RMSEP(yarn_fit_plsr, newdata=yarn_test)$val[14]
+sqrt(mean((predict(yarn_fit_ridge, newx=as.matrix(yarn_test[,-269]),
+                   s=yarn_fit_ridge$lambda.1se)-yarn_test[,269])^2))
+```
+
+We can see that the PCR and PLSR models perform very well. The ridge model gives slightly worse results for this example. More precise lambda search might be helpful.
 
 ## EXERCISE 4
 
@@ -178,6 +221,17 @@ Let us take a look at data.
 head(ozone)
 ```
 
+To perfrom Mantel test we need to calculate two matrices - one with measurement differences and one with geographic distances.
+
+```{r}
+ozone_m1 <- dist(ozone$Av8top)
+ozone_m2 <- dist(cbind(ozone$Lon, ozone$Lat))
+set.seed(06022018)
+mantel.rtest(ozone_m1, ozone_m2)
+```
+
+The simulated p-value is lower than 0.05, which suggest that the alternative hypothesis of related distances is true. We can say that stations, which are closer, have similar ozone measurements.
+
 ## EXERCISE 5
 
 Let us take a look at data.
@@ -186,13 +240,95 @@ Let us take a look at data.
 head(pendigits[,1:6])
 ```
 
+Some of the columns are reduntant. We will throw them away.
+
+```{r}
+pendigits <- pendigits[,1:17]
+```
+
+We start by computing the variances.
+
+```{r}
+sapply(pendigits[,-17], var)
+```
+
+We see that variables differ. Now we perform a PCA on covariance matrix.
+
+```{r}
+pendigits_pcacov <- prcomp(pendigits[,-17], scale=F)
+summary(pendigits_pcacov)
+```
+
+As we can see, taking just 5 components retain more than 80% of data variance; taking 7 retain more than 90%. Now we visualise three first components on the scatterplots.
+
+```{r}
+plot(data.frame(pendigits_pcacov$x[,1:3]))
+```
+
+We will now carry a PCA with the correlation matrix.
+
+```{r}
+pendigits_pcacor <- prcomp(pendigits[,-17], scale=T)
+summary(pendigits_pcacor)
+plot(data.frame(pendigits_pcacor$x[,1:3]))
+```
+
+The scaled pca performs slightly worse on this data (we need one more component to explain 80% or 90% of variance). Some of the components are more informative and some are less. Now we make a scree plots for both approaches.
+
+```{r}
+cov<-data.frame(ind=1:16, val=summary(pendigits_pcacov)$importance[3,], type=rep("cov",16))
+cov<-rbind(list(0,0,"cov"), cov)
+cor<-data.frame(ind=1:16, val=summary(pendigits_pcacor)$importance[3,], type=rep("cor",16))
+cor<-rbind(list(0,0,"cor"), cor)
+ggplot(rbind(cov,cor), aes(x=ind, y=val, color=type)) + geom_line(size=1.2, alpha=0.7) + 
+     theme_bw() + theme(legend.position=c(0.9,0.5)) + geom_point()
+```
+
+We can see that except of first component, the covariance matrix gave better principal components in terms of explained variance. Using elbow method we would take 10 components for further analysis. If we had to reduce dimension even further, we would take 4-5 components.
+
+From the PCA we can see that there is some ill-conditioning of the data matrix - the fractions of variance added from each component are not equal. By taking simply 2 first components, we get more than half information (average of 8 initial variables).
+
 ## EXERCISE 6
 
 Let us take a look at data.
 
 ```{r}
-head(carmarks[,1:6])
+head(carmarks)
 ```
+
+We divide the data into X and Y matrices and check the correlations inside these groups. and perform a CCA.
+
+```{r}
+carmarks_X <- carmarks[,4:5]
+carmarks_Y <- carmarks[,c(2:3,6:9)]
+round(cor(carmarks_X),2)
+round(cor(carmarks_Y),2)
+```
+
+Some of the variables are highly correlated, which may cause problems in CCA. Nevertheless, we will perform CCA and interpret results.
+
+```{r}
+carmarks_cca <- cca(carmarks_X, carmarks_Y, 
+                    xcenter=T, ycenter=T, xscale=T, yscale=T, standardize.score=T)
+```
+
+Before we move into conclussions, we will perform a chi-squared test for the signifficance of canonical correlations.
+
+```{r}
+pchisq(carmarks_cca$chisq, carmarks_cca$df, ncp=0)
+```
+
+There is no basis to reject the null hypothesis, so we can assume that canonical correlations are signifficant. Now let us take a look on the cca object.
+
+```{r}
+carmarks_cca
+```
+
+As the smaller group has 2 variables, we have two canonical variables CV1 and CV2. We can see that the highest correlation (0.979) is between PRICE-VALUE and ECONOMY-SERVICE-SPORT-SAFETY-EASYINESS (with some large coefficients). So the higher price and lower value stability, the more economy and less service, sporty, safety and easyiness the car is. The second canonical variable with correlation 0.885 is between -VALUE-PRICE and -ECONOMY-SERVICE-EASINESS (with some large coefficients). So the larger is the value stability and price, the more economy, service and easy to use car is.
+
+If we look at the correlations instead of coefficients, the numbers differ. For example first variable is VALUE-PRICE but correlated with ECONOMY-SERVICE-DESIGN-SPORT-SAFETY (design instead of easyiness) and with different coefficients.
+
+This is the main result and it should be considered that the input correlation matrices were quite ill-conditioned. It gives some intution about the main probable dependecies between X and Y groups of variables. 
 
 ## EXERCISE 7
 
