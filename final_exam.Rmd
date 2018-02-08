@@ -72,7 +72,7 @@ ggplot(ushighways, aes(x=Approx.Miles)) +
     theme(legend.position=c(0.9,0.8), legend.background=element_rect(fill=alpha('blue',0)))
 ```
 
-The second picture with the window width of 10 miles looks quite good. It is well-divided and shows the monotonicity of the distribution.
+The red histogram with the window width of 10 miles looks quite good. It is well-divided and shows the monotonicity of the distribution.
 
 Now we will use UCV, BCV and SJPI estimators for window width to plot densities with the gaussian kernel.
 
@@ -107,7 +107,7 @@ colnames(cor_matrix) %<>% sapply(function(x) substr(x, 1, 4))
 cor_matrix
 ```
 
-Some of the variables are highly correlated (around 80-90%), which may lead to ill-conditioning for regression. Let us fit a regression model.
+Some of the variables are highly correlated (around 80-90%), which may lead to ill-conditioning for regression. Let us fit a regression model anyway.
 
 ```{r}
 bodyfat_fit <- lm(bodyfat~., bodyfat[,-1])
@@ -126,7 +126,7 @@ summary(bodyfat_fit_backward)$call
 
 Both on the forward and backward stepwise elimination yield the same model based on 8 variables. Now we want to find the best model using leave-one-out cross-validation. It is computationally hard to check all possible models of 13 predictors (approx time 4h). We will then implement and use backward stepwise elimination heuristics instead.
 
-```{r, cache=T, }
+```{r, cache=T}
 stepwise_loocv <- function(variables, trace=F){
     bodyfat_ctrl <- trainControl(method="LOOCV")
     len <- length(variables)
@@ -158,7 +158,7 @@ plot(bodyfat_fit_lasso)
 bodyfat_lasso <- cv.lars(as.matrix(bodyfat[,-(1:2)]), bodyfat[,2], K=252, type="lasso")
 ```
 
-From this we estimate that the lowest MSE of `r which.min(bodyfat_lasso$cv)` is obtained for LASSO model with parameter `r bodyfat_lasso$index[which.min(bodyfat_lasso$cv)]`. Now we do the same analysis for LARS model.
+From this we estimate that the lowest MSE of `r bodyfat_lasso$cv[which.min(bodyfat_lasso$cv)]` is obtained for LASSO model with parameter `r bodyfat_lasso$index[which.min(bodyfat_lasso$cv)]`. Now we do the same analysis for LARS model.
 
 ```{r, fig.height=4}
 bodyfat_fit_lars <- lars(as.matrix(bodyfat[,-(1:2)]), bodyfat[,2], type="lar")
@@ -166,7 +166,7 @@ plot(bodyfat_fit_lars)
 bodyfat_lars <- cv.lars(as.matrix(bodyfat[,-(1:2)]), bodyfat[,2], K=252, type="lar")
 ```
 
-From this we estimate that the lowest MSE of `r which.min(bodyfat_lasso$cv)` is obtained for LARS model with parameter `r bodyfat_lasso$index[which.min(bodyfat_lasso$cv)]`. This is a much better result comparing to LASSO model.
+From this we estimate that the lowest MSE of `r bodyfat_lars$cv[which.min(bodyfat_lars$cv)]` is obtained for LARS model with parameter `r bodyfat_lars$index[which.min(bodyfat_lars$cv)]`. This is a very close result comparing to the LASSO model.
 
 
 ## EXERCISE 3
@@ -203,16 +203,15 @@ Now we perform a ridge regression with cross-validation.
 yarn_fit_ridge <- cv.glmnet(as.matrix(yarn_train[,-269]), yarn_train[,269], nfolds=21)
 ```
 
-We choose the model with lambda.1se estimator, which equals to `r yarn_fit_ridge$lambda.1se`.
+We choose the model with minimising lambda.min estimator, which equals to `r yarn_fit_ridge$lambda.min`. Another good practice is to choose lambda.1se estimator.
 
 Now we compare all models.
 
 ```{r}
-predict(yarn_fit_pcr, newdata=yarn_test)[,,19] -> a
 RMSEP(yarn_fit_pcr, newdata=yarn_test)$val[19]
 RMSEP(yarn_fit_plsr, newdata=yarn_test)$val[14]
 sqrt(mean((predict(yarn_fit_ridge, newx=as.matrix(yarn_test[,-269]),
-                   s=yarn_fit_ridge$lambda.1se)-yarn_test[,269])^2))
+                   s=yarn_fit_ridge$lambda.min)-yarn_test[,269])^2))
 ```
 
 We can see that the PCR and PLSR models perform very well. The ridge model gives slightly worse results for this example. More precise lambda search might be helpful.
@@ -256,7 +255,7 @@ We start by computing the variances.
 sapply(pendigits[,-17], var)
 ```
 
-We see that variables differ. Now we perform a PCA on the covariance matrix.
+We see that some variables differ. Now we perform a PCA on the covariance matrix.
 
 ```{r}
 pendigits_pcacov <- prcomp(pendigits[,-17], scale=F)
@@ -300,7 +299,7 @@ Let us take a look at data.
 head(carmarks)
 ```
 
-We divide the data into X and Y matrices and check the correlations inside these groups. and perform a CCA.
+We divide the data into X and Y matrices and check the correlations inside these groups. Then we perform a CCA.
 
 ```{r}
 carmarks_X <- carmarks[,4:5]
@@ -351,7 +350,8 @@ scapular[,2:8] %<>% scale
 
 Now we cluster our data using kmeans, pam (divisive) and single, average, complete and ward linkage (hierarchical). For devisive methods we use k=5. For hierarchical we plot dendrograms and cut them to get 5 clusters as well.
 
-```{r, fig.height=4}
+```{r, cache=T, fig.height=4}
+set.seed(0)
 scapular_kmeans <- kmeans(scapular[,2:8], centers=5)
 table(scapular_kmeans$cluster)
 
@@ -361,8 +361,8 @@ table(scapular_pam$cluster)
 scapular_dist <- dist(scapular[,2:8], method="euclidean")
 
 scapular_single <- hclust(scapular_dist, method="single")
-scapular_average <- hclust(scapular_dist, method="average") 
-scapular_complete <- hclust(scapular_dist, method="complete") 
+scapular_average <- hclust(scapular_dist, method="average")
+scapular_complete <- hclust(scapular_dist, method="complete")
 scapular_ward <- hclust(scapular_dist, method="ward") 
 
 plot(scapular_single)
@@ -382,29 +382,39 @@ rect.hclust(scapular_ward, k=5, border="red")
 scapular_ward %<>% cutree(k=5)
 ```
 
-From the summaries and pictures, we can see that devisive algorithms don't give outliers. From the hierarchical methods, single and average linkage produce outliers, while complete and ward linkage does not. Now we compare the results with theoretical groups and write confusion matrices.
+From the summaries and pictures, we can see that devisive algorithms don't give outliers. From the hierarchical methods, single and average linkage produce outliers, while complete and ward linkage does not. 
 
-```{r}
+Now we compare the results with theoretical groups and write confusion matrices. As clustering is not supervised learning method, we have to assume something about clusters order. The results below are the results which maximise accuracy (from 5! possible cluster permutations).
+
+```{r, cache=T}
+cl_swap <- function(x, i, j) if (x==i) j else if (x==j) i else x
+
+scapular_kmeans$cluster %<>% sapply(cl_swap,1,3) %>% sapply(cl_swap,3,4) %>% sapply(cl_swap,4,5)
 confusionMatrix(scapular_kmeans$cluster, scapular$classdigit)$table
 confusionMatrix(scapular_kmeans$cluster, scapular$classdigit)$overall[1]
 
+#scapular_pam$cluster %<>% sapply(cl_swap,2,4) %>% sapply(cl_swap,3,4)
 confusionMatrix(scapular_pam$cluster, scapular$classdigit)$table
 confusionMatrix(scapular_pam$cluster, scapular$classdigit)$overall[1]
 
+scapular_single %<>% sapply(cl_swap,2,5) %>% sapply(cl_swap,1,3) %>% sapply(cl_swap,1,2)
 confusionMatrix(scapular_single, scapular$classdigit)$table
 confusionMatrix(scapular_single, scapular$classdigit)$overall[1]
 
+scapular_average %<>% sapply(cl_swap,2,5) %>% sapply(cl_swap,2,3)
 confusionMatrix(scapular_average, scapular$classdigit)$table
 confusionMatrix(scapular_average, scapular$classdigit)$overall[1]
 
+scapular_complete %<>% sapply(cl_swap,2,3) %>% sapply(cl_swap,3,4)
 confusionMatrix(scapular_complete, scapular$classdigit)$table
 confusionMatrix(scapular_complete, scapular$classdigit)$overall[1]
 
+scapular_ward %<>% sapply(cl_swap,3,4)
 confusionMatrix(scapular_ward, scapular$classdigit)$table
 confusionMatrix(scapular_ward, scapular$classdigit)$overall[1]
 ```
 
-The devisive methods gave quite good results: 0.55 acc for kmeans and 0.67 acc for pam. The hierarchical methods with single and average linkage are worse on this dataset (0.29 and 0.28 acc) but complete and ward linkage works well (0.62 and 0.70 acc).
+The devisive methods gave quite good results: 0.77 acc for kmeans and 0.67 acc for pam. The hierarchical methods with single linkage gave only 0.57 acc but average, complete and ward linkage gave good results (0.70, 0.78, 0.76 acc).
 
 ## EXERCISE 8
 
