@@ -72,9 +72,9 @@ ggplot(ushighways, aes(x=Approx.Miles)) +
     theme(legend.position=c(0.9,0.8), legend.background=element_rect(fill=alpha('blue',0)))
 ```
 
-The second picture with window width of 10 miles looks quite good. It is well-splitted and shows the  monotonicity of the distribution.
+The second picture with the window width of 10 miles looks quite good. It is well-divided and shows the monotonicity of the distribution.
 
-Now we will use UCV, BCV and SJPI estimators for window width to plot densities with gaussian kernel.
+Now we will use UCV, BCV and SJPI estimators for window width to plot densities with the gaussian kernel.
 
 ```{r}
 sjpi <- width.SJ(ushighways$Approx.Miles, method="dpi")
@@ -88,7 +88,7 @@ ggplot(ushighways, aes(x=Approx.Miles)) +
     theme(legend.position=c(0.9,0.8), legend.background=element_rect(fill=alpha('blue',0)))
 ```
 
-The BCV estimator (red one) looks quite well-fitted and monotonic. The other kernel choices (triangular, cosine etc.) gave very similar results.
+The BCV estimator (the red one) looks quite well-fitted and monotonic. The other kernel choices (triangular, cosine etc.) gave very similar results.
 
 ## EXERCISE 2
 
@@ -98,10 +98,13 @@ Let us take a look at data.
 head(bodyfat[,1:6])
 ```
 
-We now calculate correlation matrix for 13 explanatory variables.
+We now calculate the correlation matrix for 13 explanatory variables.
 
 ```{r}
-round(cor(bodyfat[,-(1:2)]), 2)
+cor_matrix <- round(cor(bodyfat[,-(1:2)]), 2)
+row.names(cor_matrix) %<>% sapply(function(x) substr(x, 1, 1))
+colnames(cor_matrix) %<>% sapply(function(x) substr(x, 1, 4))
+cor_matrix
 ```
 
 Some of the variables are highly correlated (around 80-90%), which may lead to ill-conditioning for regression. Let us fit a regression model.
@@ -111,7 +114,7 @@ bodyfat_fit <- lm(bodyfat~., bodyfat[,-1])
 summary(bodyfat_fit)
 ```
 
-The signifficant variables are: age, neck, abdomen, forearm and wrist. Let us now fit regression by stepwise elimination.
+The significant variables are age, neck, abdomen, forearm, and wrist. Let us now fit regression by stepwise elimination.
 
 ```{r}
 bodyfat_fit_forward <- step(lm(bodyfat~1, bodyfat[,-1]), direction="forward",
@@ -121,7 +124,7 @@ bodyfat_fit_backward <- step(lm(bodyfat~., bodyfat[,-1]), direction="backward", 
 summary(bodyfat_fit_backward)$call
 ```
 
-Both on the forward and backward stepwise elimination yield the same model based on 8 variables. Now we wan't to find the best model using leave-one-out cross-validation. It is computationally hard to check all possible models of 13 predictors (approx time 4h). We will then implement and use backward stepwise elimination heuristics instead.
+Both on the forward and backward stepwise elimination yield the same model based on 8 variables. Now we want to find the best model using leave-one-out cross-validation. It is computationally hard to check all possible models of 13 predictors (approx time 4h). We will then implement and use backward stepwise elimination heuristics instead.
 
 ```{r, cache=T, }
 stepwise_loocv <- function(variables, trace=F){
@@ -147,7 +150,7 @@ bodyfat_fit_loocv <- stepwise_loocv(colnames(bodyfat[,-(1:2)]), trace=T)
 formula(bodyfat_fit_loocv)
 ```
 
-This method yields the same model as the ones from the elimination based on AIC. Now we fit a LASSO model and look for a best fit by a leave-one-out cross-validation.
+This method yields the same model as the ones from the elimination based on AIC. Now we fit a LASSO model and look for the best fit by a leave-one-out cross-validation.
 
 ```{r, fig.height=4}
 bodyfat_fit_lasso <- lars(as.matrix(bodyfat[,-(1:2)]), bodyfat[,2], type="lasso")
@@ -176,7 +179,7 @@ yarn_train <- (yarn %>% filter(train==1))[,-270]
 yarn_test <- (yarn %>% filter(train==0))[,-270]
 ```
 
-Now we perform PCR and PSLR. We will estimate the error for different number of components by the leave-one-out cross-validation.
+Now we perform PCR and PSLR. We will estimate the error for a different number of components by the leave-one-out cross-validation.
 
 ```{r}
 yarn_fit_pcr <- pcr(y~., ncomp=20, data=yarn_train, validation="LOO")
@@ -184,7 +187,7 @@ summary(yarn_fit_pcr)
 plot(RMSEP(yarn_fit_pcr), legendpos="topright")
 ```
 
-We get the lowest cross-validated error for 19 components, so we choose this number. By the look of graph we could take less components for simplicity (not much difference after 6-th component).
+We get the lowest cross-validated error for 19 components, so we choose this number. By the look of the graph we could take fewer components for simplicity (not much difference after 6-th component).
 
 ```{r}
 yarn_fit_plsr <- plsr(y~., ncomp=20, data=yarn_train, validation="LOO")
@@ -192,7 +195,7 @@ summary(yarn_fit_plsr)
 plot(RMSEP(yarn_fit_plsr), legendpos="topright")
 ```
 
-We get the lowest cross-validated error for 14 components, so we choose this number. By the look of graph we could take less components for simplicity (not much difference after 5-th component).
+We get the lowest cross-validated error for 14 components, so we choose this number. By the look of the graph we could take fewer components for simplicity (not much difference after 5-th component).
 
 Now we perform a ridge regression with cross-validation.
 
@@ -222,7 +225,7 @@ Let us take a look at data.
 head(ozone)
 ```
 
-To perfrom Mantel test we need to calculate two matrices - one with measurement differences and one with geographic distances.
+To perform Mantel test, we need to calculate two matrices - one with measurement differences and one with geographic distances.
 
 ```{r}
 ozone_m1 <- dist(ozone$Av8top)
@@ -241,7 +244,7 @@ Let us take a look at data.
 head(pendigits[,1:6])
 ```
 
-Some of the columns are reduntant. We will throw them away.
+Some of the columns are redundant. We will throw them away.
 
 ```{r}
 pendigits <- pendigits[,1:17]
@@ -253,14 +256,14 @@ We start by computing the variances.
 sapply(pendigits[,-17], var)
 ```
 
-We see that variables differ. Now we perform a PCA on covariance matrix.
+We see that variables differ. Now we perform a PCA on the covariance matrix.
 
 ```{r}
 pendigits_pcacov <- prcomp(pendigits[,-17], scale=F)
 summary(pendigits_pcacov)
 ```
 
-As we can see, taking just 5 components retain more than 80% of data variance; taking 7 retain more than 90%. Now we visualise three first components on the scatterplots.
+As we can see, taking just 5 components retain more than 80% of data variance; taking 7 retain more than 90%. Now we visualize three first components on the scatterplots.
 
 ```{r}
 plot(data.frame(pendigits_pcacov$x[,1:3]))
@@ -274,7 +277,7 @@ summary(pendigits_pcacor)
 plot(data.frame(pendigits_pcacor$x[,1:3]))
 ```
 
-The scaled pca performs slightly worse on this data (we need one more component to explain 80% or 90% of variance). Some of the components are more informative and some are less. Now we make a scree plots for both approaches.
+The scaled PCA performs slightly worse on this data (we need one more component to explain 80% or 90% of variance). Some of the components are more informative and some are less. Now we make scree plots for both approaches.
 
 ```{r}
 cov<-data.frame(ind=1:16, val=summary(pendigits_pcacov)$importance[3,], type=rep("cov",16))
@@ -285,7 +288,7 @@ ggplot(rbind(cov,cor), aes(x=ind, y=val, color=type)) + geom_line(size=1.2, alph
      theme_bw() + theme(legend.position=c(0.9,0.5)) + geom_point()
 ```
 
-We can see that except of first component, the covariance matrix gave better principal components in terms of explained variance. Using elbow method we would take 10 components for further analysis. If we had to reduce dimension even further, we would take 4-5 components.
+We can see that except the first component, the covariance matrix gave better principal components in terms of explained variance. Using elbow method we would take 10 components for further analysis. If we had to reduce dimension even further, we would take 4-5 components.
 
 From the PCA we can see that there is some ill-conditioning of the data matrix - the fractions of variance added from each component are not equal. By taking simply 2 first components, we get more than half information (average of 8 initial variables).
 
@@ -313,23 +316,23 @@ carmarks_cca <- cca(carmarks_X, carmarks_Y,
                     xcenter=T, ycenter=T, xscale=T, yscale=T, standardize.score=T)
 ```
 
-Before we move into conclussions, we will perform a chi-squared test for the signifficance of canonical correlations.
+Before we move into conclusions, we will perform a chi-squared test for the significance of canonical correlations.
 
 ```{r}
 pchisq(carmarks_cca$chisq, carmarks_cca$df, ncp=0)
 ```
 
-There is no basis to reject the null hypothesis, so we can assume that canonical correlations are signifficant. Now let us take a look on the cca object.
+There is no basis to reject the null hypothesis, so we can assume that canonical correlations are significant. Now let us take a look at the cca object.
 
 ```{r}
 carmarks_cca
 ```
 
-As the smaller group has 2 variables, we have two canonical variables CV1 and CV2. We can see that the highest correlation (0.979) is between PRICE-VALUE and ECONOMY-SERVICE-SPORT-SAFETY-EASYINESS (with some large coefficients). So the higher price and lower value stability, the more economy and less service, sporty, safety and easyiness the car is. The second canonical variable with correlation 0.885 is between -VALUE-PRICE and -ECONOMY-SERVICE-EASINESS (with some large coefficients). So the larger is the value stability and price, the more economy, service and easy to use car is.
+As the smaller group has 2 variables, we have two canonical variables CV1 and CV2. We can see that the highest correlation (0.979) is between PRICE-VALUE and ECONOMY-SERVICE-SPORT-SAFETY-EASYINESS (with some large coefficients). So the higher price and lower value stability, the more economy and less service, sporty, safety and easy to use the car is. The second canonical variable with correlation 0.885 is between -VALUE-PRICE and -ECONOMY-SERVICE-EASINESS (with some large coefficients). So the larger is the value stability and price, the more economy, service and easy to use car is.
 
-If we look at the correlations instead of coefficients, the numbers differ. For example first variable is VALUE-PRICE but correlated with ECONOMY-SERVICE-DESIGN-SPORT-SAFETY (design instead of easyiness) and with different coefficients.
+If we look at the correlations instead of coefficients, the numbers differ. For example, the first variable is VALUE-PRICE but correlated with ECONOMY-SERVICE-DESIGN-SPORT-SAFETY (design instead of easyiness) and with different coefficients.
 
-This is the main result and it should be considered that the input correlation matrices were quite ill-conditioned. It gives some intution about the main probable dependecies between X and Y groups of variables. 
+This is the main result and it should be considered that the input correlation matrices were quite ill-conditioned. It gives some intuition about the main probable dependencies between X and Y groups of variables. 
 
 ## EXERCISE 7
 
@@ -339,14 +342,14 @@ Let us take a look at data.
 head(scapular)
 ```
 
-Before we start cluster analysis, we scale the columns, so the euclidean distance will have better interpretation.
+Before we start cluster analysis, we scale the columns, so the euclidean distance will have a better interpretation.
 
 ```{r}
 scapular <- scapular[,-9]
 scapular[,2:8] %<>% scale
 ```
 
-Now we cluster our data using kmeans, pam (divisive) and single, average, complete and ward linkage (hierarchical). For devisive metods we use k=5. For hierarchical we plot dendrograms and cut them to get 5 clusters as well.
+Now we cluster our data using kmeans, pam (divisive) and single, average, complete and ward linkage (hierarchical). For devisive methods we use k=5. For hierarchical we plot dendrograms and cut them to get 5 clusters as well.
 
 ```{r, fig.height=4}
 scapular_kmeans <- kmeans(scapular[,2:8], centers=5)
@@ -379,7 +382,7 @@ rect.hclust(scapular_ward, k=5, border="red")
 scapular_ward %<>% cutree(k=5)
 ```
 
-From the summaries and pictures we can see that devisive algorithms don't give outliers. From the hierarchical methods, single and average linkage produce outliers, while complete and ward linkage does not. Now we compare the results with theoretical groups and write confusion matrices.
+From the summaries and pictures, we can see that devisive algorithms don't give outliers. From the hierarchical methods, single and average linkage produce outliers, while complete and ward linkage does not. Now we compare the results with theoretical groups and write confusion matrices.
 
 ```{r}
 confusionMatrix(scapular_kmeans$cluster, scapular$classdigit)$table
@@ -408,5 +411,63 @@ The devisive methods gave quite good results: 0.55 acc for kmeans and 0.67 acc f
 Let us take a look at data.
 
 ```{r}
+scapular <- read.table(urls[6], sep=" ", header=T)
 head(scapular)
 ```
+
+```{r, eval=F, include=F}
+library(MVN)
+
+for (i in 1:5){
+    hzTest(scapular[scapular$classdigit==i, 2:8], qqplot=F)
+    mardiaTest(scapular[scapular$classdigit==i, 2:8], qqplot=F)
+    roystonTest(scapular[scapular$classdigit==i, 2:8], qqplot=F)
+}
+```
+
+We have checked that the data points inside particular classes are generally multivariate normal, which satisfies the assumptions for lda. We peform a leave-one-out cross-validated lda for each reference primates vs others and check, which individuals were classified to certain regions.
+
+```{r}
+ambireg <- 1:105
+primates <- c("Gorilla", "Homo", "Hylobates", "Pan", "Pongo")
+for (prim in primates) {
+    df <- scapular
+    df$class %<>% sapply(function(x) ifelse(x==prim, prim, "other"))
+    df$class %<>% factor
+    fit <- lda(class~., data=df[,c(2:8,10)], CV=T)
+    specreg <- which(fit$class==prim)
+    len <- min(length(specreg), 20)
+    text <- paste(prim, "region:", paste(specreg[1:len], collapse=" "))
+    if (length(specreg)>20) text <- paste(text, "[...]")
+    print(text)
+    ambireg <- setdiff(ambireg, specreg)
+}
+
+print(paste("Ambiguous region:", paste(ambireg, collapse=" ")))
+```
+
+Now we perform 10 lda for each pair of primates and predict the whole data. We then classify the species by the majority vote.
+
+```{r}
+pairs <- combn(primates, 2)
+preds <- data.frame(matrix(NA, 105, 10))
+for (i in 1:10) {
+    pair <- pairs[,i]
+    df <- scapular %>% filter(class %in% pair)
+    df$class %<>% drop.levels()
+    fit <- lda(class~., data=df[,c(2:8,10)])
+    preds[,i] <- predict(fit, scapular[,c(2:8)])$class
+}
+vote <- function(x) names(sort(table(t(x)), decreasing=T)[1])
+scapular_pred <- apply(preds, 1, vote)
+confusionMatrix(scapular_pred, scapular$class)$table
+```
+
+We have obtained the almost perfect fit to the training data with 99% accuracy (only 1 misclasification). Let us now compare it with the straight use of lda with 5 boundaries.
+
+```{r}
+scapular_fit <- lda(class~., data=scapular[,c(2:8,10)], CV=T)
+confusionMatrix(scapular_fit$class, scapular$class)$table
+```
+
+We can see that this classifier is slightly worse on training data with 97% accuracy (3 misclasifications). It seems like the voting method is better. To be sure, we would need some test data to check how it generalizes to new examples.
